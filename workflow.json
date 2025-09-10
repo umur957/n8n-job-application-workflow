@@ -1,0 +1,658 @@
+{
+  "name": "My workflow 4",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        912,
+        -176
+      ],
+      "id": "ac6afc3f-382e-4a9e-83c9-e01dfc6a98d6",
+      "name": "When clicking ‘Test workflow’"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "documentURL": "16_-4VUG-324Ma5kle6GmaWP5rix3T6XL7kbFTzEiWM4"
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        1136,
+        -176
+      ],
+      "id": "f7bcd344-9c6b-40e9-8aef-af3c1fbd4ca0",
+      "name": "Get Original Resume"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/curious_coder~linkedin-jobs-scraper/run-sync-get-dataset-items?token=addyourtokenhere",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n    \"count\": 100,\n    \"countryCode\": 10,\n    \"scrapeCompany\": true,\n    \"urls\": [\n        \"https://www.linkedin.com/jobs/search/?currentJobId=4251849288&f_TPR=r604800&geoId=105214831&keywords=seo%20manager&origin=JOB_SEARCH_PAGE_LOCATION_AUTOCOMPLETE&refresh=true\"\n    ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1360,
+        -176
+      ],
+      "id": "ae062551-5385-46e7-afc8-0e641c48c1af",
+      "name": "Get LinkedIn Jobs"
+    },
+    {
+      "parameters": {
+        "maxItems": 20
+      },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        1584,
+        -176
+      ],
+      "id": "3902be6e-1b97-4c78-9d62-115ba4d3a196",
+      "name": "Limit"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1-MINI"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are an expert at filtering Jobs based on Candidate Skills. You will be provided with the candidate Skills and job description. You should research and find out if the said job is relevant to the user.\n\nResponsd in this JSON Format\n{\"relevant\": \"true\" or \"false\",\"companyName\": Name of the company, \"jobDescription\": description of job}\n\nIf the job is relevant it should return true and if the job is false, it should return false\n\nJob Description:\nCompany Name: {{ $json.companyName }}\n{{ $json.descriptionText }}\n\n\nUser Skills:\nSEO\nAmazon PPC\n\n"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1808,
+        -176
+      ],
+      "id": "9f51e921-a6f3-48b0-a69c-fb5bedfb16e3",
+      "name": "OpenAI"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ba172fda-bff8-41fc-8cf5-a2a4de6684e6",
+              "leftValue": "={{ $json.message.content.relevant }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "99e0dd7a-b9ea-4b7b-9377-313c418abaa4",
+              "leftValue": "={{ $('Limit').item.json.companyWebsite }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        2208,
+        -176
+      ],
+      "id": "aff0beb7-e185-49a5-ad41-a5401ee3c4aa",
+      "name": "Filter"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1-MINI"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are an expert at rewriting resumes based on Job Descriptions. You will be provided with the candidate's skills, job description, and candidate resume. You should prepare a resume for the candidate that is optimized for the particular job description.\n\n**IMPORTANT INSTRUCTIONS:**\n- The resume you prepare will be sent directly to client. So do not add any notes and or sections which require information to be updated by the candidate\n\n**Job Description:**\n{{ $('Limit').item.json.descriptionText }}\n\n**Candidate Resume:**\n{{ $('Get Original Resume').item.json.content }}\n\nThe resume will be added to Google Docs, so provide the output in Markdown format. Put the markdown resume content in a JSON item called \"resume\". \n\nReturn only the clean, professional resume without any AI-generated filler text, placeholder sections, or explanatory notes."
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        896,
+        112
+      ],
+      "id": "18e7bf0c-d54b-4495-8b3b-c0d8ded3f197",
+      "name": "Resume Optimiser"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        2432,
+        -176
+      ],
+      "id": "190f0cdd-0e50-4cba-b63e-f2e3c33137ab",
+      "name": "Limit1"
+    },
+    {
+      "parameters": {
+        "mode": "markdownToHtml",
+        "markdown": "={{ $json.message.content.resume }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.markdown",
+      "typeVersion": 1,
+      "position": [
+        1248,
+        112
+      ],
+      "id": "b51d13db-8a05-4608-8f25-a0de94a2f36d",
+      "name": "Markdown"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://www.googleapis.com/upload/drive/v3/files/{{ $json.id }}?uploadType=media",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDocsOAuth2Api",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "{\n  \"Content-Type\":\"text/html\"\n}",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "text/html",
+        "body": "={{ $('Markdown').item.json.data }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1696,
+        112
+      ],
+      "id": "712d4a62-765e-4ef2-8278-2a8ec2412432",
+      "name": "Update Resume in Google Doc"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract emails from the input data\nconst inputData = $input.all();\nlet highestConfidenceEmail = null;\nlet maxConfidence = -1;\n\n// Process each input item\nfor (const item of inputData) {\n  // Check if emails array exists and has items\n  if (item.json.data && item.json.data.emails && item.json.data.emails.length > 0) {\n    const emails = item.json.data.emails;\n    \n    // Find the email with highest confidence\n    for (const email of emails) {\n      if (email.confidence > maxConfidence) {\n        maxConfidence = email.confidence;\n        highestConfidenceEmail = {\n          value: email.value,\n          confidence: email.confidence\n        };\n      }\n    }\n  }\n}\n\n// Return the highest confidence email or \"Not Found\" if none exists\nreturn [{\n  json: highestConfidenceEmail || {\n    value: \"Not Found\",\n    confidence: 0\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2144,
+        112
+      ],
+      "id": "5b2a0417-779a-49ad-9b50-00c107226a92",
+      "name": "Filter Email With High Confidence"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "0c4761f1-fa7b-4b1a-8ce4-df79a0513e9a",
+              "leftValue": "={{ $json.value }}",
+              "rightValue": "Not Found",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        896,
+        384
+      ],
+      "id": "d8a55ce9-0d01-4453-a62c-3f2ed5ce1671",
+      "name": "Check If HR Email Exists"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.hunter.io/v2/domain-search?domain={{ $('Limit').item.json.companyWebsite.replace(/^https?:\\/\\/(www\\.)?/, '') }}&api_key=addyourapikeyhere&department=hr",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1920,
+        112
+      ],
+      "id": "adef6a34-a4c4-43cb-bf0d-6f29528421c4",
+      "name": "Find HR Email"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.hunter.io/v2/domain-search?domain={{ $('Limit').item.json.companyWebsite.replace(/^https?:\\/\\/(www\\.)?/, '') }}&api_key=addyourapikeyhere",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1280,
+        464
+      ],
+      "id": "4e8c8e38-93ab-4312-94d1-1f03e230bef4",
+      "name": "Find General Email"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract emails from the input data\nconst inputData = $input.all();\nlet highestConfidenceEmail = null;\nlet maxConfidence = -1;\n\n// Process each input item\nfor (const item of inputData) {\n  // Check if emails array exists and has items\n  if (item.json.data && item.json.data.emails && item.json.data.emails.length > 0) {\n    const emails = item.json.data.emails;\n    \n    // Find the email with highest confidence\n    for (const email of emails) {\n      if (email.confidence > maxConfidence) {\n        maxConfidence = email.confidence;\n        highestConfidenceEmail = {\n          value: email.value,\n          confidence: email.confidence\n        };\n      }\n    }\n  }\n}\n\n// Return the highest confidence email or \"Not Found\" if none exists\nreturn [{\n  json: highestConfidenceEmail || {\n    value: \"Not Found\",\n    confidence: 0\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1488,
+        464
+      ],
+      "id": "f7ff2055-d662-4d6d-9a5a-2928989776ea",
+      "name": "Filter Email With High Confidence1"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are an expert recruiter outreach specialist. Craft a personalized, compelling email that will get a recruiter's attention and prompt a response.\n\nInstructions:\nCreate a professional job application email (150-200 words max) that:\n\nSubject Line: Create an attention-grabbing subject mentioning \"Application for [Job Title]\" and candidate's key strength\nOpening: Clearly state you're applying for the specific position and reference the job posting with the provided URL\nValue Proposition: Highlight 2-3 most relevant qualifications from the resume that directly match the job requirements\nSocial Proof: Include one quantifiable achievement if available\nCall to Action: Request an interview or conversation to discuss the opportunity\nProfessional Closing: Include resume link naturally and reference to job posting URL\n\nTone Requirements:\n\nConfident but not arrogant\nSpecific, not generic\nResults-focused\nProfessional yet personable\n\nOutput Format:\nReturn the response as a JSON object with exactly this structure:\n{\n  \"toEmail\": \"Pass through the recipient's email address from input\",\n  \"subject\": \"Compelling subject line here\",\n  \"body\": \"Complete email body with proper formatting, including resume link and professional closing\"\n}\n\nKey Rules:\n\nMUST clearly state this is a job application for the posted position\nMUST include the job posting URL in the email body for easy reference\nMUST mention you found the job posting on LinkedIn\nNever use phrases like \"I hope this email finds you well\"\nAlways lead with value and relevant qualifications\nInclude specific metrics when possible\nMake both resume link and job URL contextual, not awkward\nEnd with a request for interview/discussion opportunity\nCRITICAL: Return ONLY valid JSON format with \"toEmail\", \"subject\" and \"body\" keys\nInclude candidate name and professional closing within the body text\nPass through the toEmail exactly as provided in input\n\nInputs:\nCompany Name: {{ $('Limit1').item.json.message.content.companyName }}\nJob Description:{{ $('Limit1').item.json.message.content.jobDescription }}\nCandidate Resume: {{ $('Markdown').item.json.message.content.resume }}\nJob Link: {{ $('Limit').item.json.link }}\nResume Link: https://docs.google.com/document/d/{{ $('Update Resume in Google Doc').item.json.id }}\ntoEmail: {{ $json.email }}"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1984,
+        352
+      ],
+      "id": "be4171f8-a615-4069-b39c-812777d8aee3",
+      "name": "Create Unique Email"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e22c9ce9-6f6f-4776-a886-3e605daa9faa",
+              "name": "email",
+              "value": "={{ $('Filter Email With High Confidence').item.json.value }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1504,
+        304
+      ],
+      "id": "1a41b06b-b82b-4eb3-aaeb-e33f333073ea",
+      "name": "Set Email"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f55c0e7e-e21a-4156-a31b-0158b9839c7d",
+              "name": "email",
+              "value": "={{ $json.value }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1728,
+        480
+      ],
+      "id": "8a3d6d52-2def-49ff-bb15-e6c3551f67c4",
+      "name": "Set Email2"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.message.content.toEmail }}",
+        "subject": "={{ $json.message.content.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.message.content.body }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        2512,
+        352
+      ],
+      "id": "a601acad-0a7e-4aaa-9be7-28192ff0836e",
+      "name": "Send a message",
+      "webhookId": "62f7f19e-dd72-4079-b614-a957d4e0a199"
+    },
+    {
+      "parameters": {
+        "folderId": "1v6YYa9byq3sHtL0apXaKdXbVhnAWfyCv",
+        "title": "=Chacko Resume {{ $('Limit1').item.json.message.content.companyName }}"
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        1472,
+        112
+      ],
+      "id": "04ab8e8e-4e18-42b1-b3c3-1f2191803a39",
+      "name": "Create a document"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Test workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get Original Resume",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Original Resume": {
+      "main": [
+        [
+          {
+            "node": "Get LinkedIn Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get LinkedIn Jobs": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "OpenAI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI": {
+      "main": [
+        [
+          {
+            "node": "Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter": {
+      "main": [
+        [
+          {
+            "node": "Limit1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit1": {
+      "main": [
+        [
+          {
+            "node": "Resume Optimiser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resume Optimiser": {
+      "main": [
+        [
+          {
+            "node": "Markdown",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Markdown": {
+      "main": [
+        [
+          {
+            "node": "Create a document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Email With High Confidence": {
+      "main": [
+        [
+          {
+            "node": "Check If HR Email Exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find HR Email": {
+      "main": [
+        [
+          {
+            "node": "Filter Email With High Confidence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check If HR Email Exists": {
+      "main": [
+        [
+          {
+            "node": "Set Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Find General Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find General Email": {
+      "main": [
+        [
+          {
+            "node": "Filter Email With High Confidence1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Resume in Google Doc": {
+      "main": [
+        [
+          {
+            "node": "Find HR Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Email With High Confidence1": {
+      "main": [
+        [
+          {
+            "node": "Set Email2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Unique Email": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Email": {
+      "main": [
+        [
+          {
+            "node": "Create Unique Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Email2": {
+      "main": [
+        [
+          {
+            "node": "Create Unique Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a document": {
+      "main": [
+        [
+          {
+            "node": "Update Resume in Google Doc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "",
+  "meta": {
+    "instanceId": "8bc1702d2d8cd0b3ceecad89e523c2eed134dd28b1826ba3ff21e1bb6ce2289e"
+  },
+  "tags": [
+    {
+      "name": "Engineering",
+      "id": "Q1J1zZpIuJEFBAQN",
+      "createdAt": "2025-09-10T13:20:42.432Z",
+      "updatedAt": "2025-09-10T13:20:42.432Z"
+    },
+    {
+      "name": "Building Blocks",
+      "id": "CFA1vEduuxrmEoNS",
+      "createdAt": "2025-09-10T13:20:42.442Z",
+      "updatedAt": "2025-09-10T13:20:42.442Z"
+    },
+    {
+      "name": "AI",
+      "id": "9WvXD8m6UwJJwtzS",
+      "createdAt": "2025-09-10T13:20:42.457Z",
+      "updatedAt": "2025-09-10T13:20:42.457Z"
+    },
+    {
+      "name": "tutorials",
+      "id": "fh2rmFXBQ5cVHnaz",
+      "createdAt": "2025-09-10T13:20:42.450Z",
+      "updatedAt": "2025-09-10T13:20:42.450Z"
+    }
+  ]
+}
